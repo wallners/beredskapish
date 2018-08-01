@@ -1,12 +1,12 @@
 # Rules
 The game of Beredskapish explores the idea of taking an exact number of tricks specified by a bid before the hand.
 
-Number of players: 3 players. Every non-human players become a bot.
+Number of players: 3 players. Every non-human players become a boit.
 
-##Deck
+## Deck
 The game is played using a standard 52-card deck, with ace (A) being the highest rank, two (2) the lowest.
 
-##Deal
+## Deal
 After the dealing is complete, the next card is turned face up, and the suit of this card determines the trump suit for the deal.
         When every player has made a bid, the player to the left of the dealer makes the opening lead.
         Play then proceeds as usual in a trick-taking game, with each player in turn playing one card.
@@ -15,5 +15,5 @@ After the dealing is complete, the next card is turned face up, and the suit of 
         The first hand is played with one card dealt to each player. On each succeeding deal one more card is dealt out to each player,
       	until there are a total of 5 cards per hand.
 
-##Points
+## Points
 A player who makes the exact number of tricks bid scores the amount bid. Over- and undertricking scores zero points.
