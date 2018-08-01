@@ -2,7 +2,7 @@
 The game of Beredskapish explores the idea of taking an exact number of tricks specified by a bid before the hand.
 
 ## Number of players
-The game is played with three players. Every non-human players become a boit.
+The game is played with three players. Every non-human player becomes a bot.
 
 ## Deck
 The game is played using a standard 52-card deck, with ace (A) being the highest rank, two (2) the lowest.
