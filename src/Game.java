@@ -1,10 +1,14 @@
 import java.io.*;
+import java.lang.reflect.Array;
+import java.security.Key;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class Game {
-
     public static void main(String[] args) {
+
+
         Scanner scanner = new Scanner(System.in);
         boolean gameRunning = true;
         final int ROUNDS = 5;
@@ -21,10 +25,10 @@ public class Game {
         Map<String, Integer> highScore = new HashMap();
         try {
             highScore = readFile(highScoreString);
+            highScore = MapUtil.sortByValue(highScore);
         } catch (Exception e) {
             System.out.println("Error reading file");
         }
-
 
         while (true) {
             gameRunning = menuSelection(gameRunning, highScore, scanner);
@@ -46,9 +50,12 @@ public class Game {
                 calculateScores(players);
                 showScores(players);
                 returnCards(deck, players, trumpCard);
+                hideEveryCard(deck);
                 resetAllTricks(players);
+                //players = rotatePlayers(players, 1);
             }
             addWinnerToHighScore(players, highScore);
+            highScore = MapUtil.sortByValue(highScore);
             try {
                 saveFile(highScore, "highscore.txt");
             } catch (Exception e) {
@@ -93,11 +100,16 @@ public class Game {
         System.out.println("How many players?");
         int numberOfPlayers;
         while (true) {
-            numberOfPlayers = scanner.nextInt();
-            if (numberOfPlayers > 0 && numberOfPlayers <= 3) {
-                break;
-            } else {
-                System.out.println("Invalid input.");
+            try {
+                numberOfPlayers = scanner.nextInt();
+                if (numberOfPlayers > 0 && numberOfPlayers <= 3) {
+                    break;
+                } else {
+                    System.out.println("Invalid input.");
+                }
+            } catch (Exception e) {
+                System.out.println("Please enter an integer.");
+                scanner.next();
             }
         }
         for (int i = 0; i < numberOfPlayers; i++) {
@@ -129,13 +141,11 @@ public class Game {
         int i = highScore.size();
         System.out.println("~HIGH SCORE~");
         for (Map.Entry<String, Integer> entry : highScore.entrySet()) {
-            System.out.print(i + ". ");
+            System.out.print(i-- + ". ");
             System.out.println(entry.getKey() + ": " + entry.getValue());
-            i--;
         }
         System.out.println(" ");
     }
-
 
     public static void dealCards(int round, Player[] players, Deck deck) {
         for (int i = 0; i < round; i++) {
@@ -152,14 +162,16 @@ public class Game {
     public static void placeBids(Player[] players, int round, Scanner scanner, Card trumpCard) {
         int bid;
         for (Player player : players) {
-            System.out.println(player.getName() + "'s cards:");
-            System.out.println(player.getHand().showCards());
-            System.out.println("Trump: " + trumpCard);
+            if (!player.isBot()) {
+                System.out.println(player.getName() + "'s cards:");
+                System.out.println(player.getHand().showCards());
+                System.out.println("Trump: " + trumpCard);
+            }
             if (player.isBot()) {
                 player.setBid(giveBid(player, round));
             } else {
-                try {
-                    while (true) {
+                while (true) {
+                    try {
                         System.out.println("Place a bid:");
                         bid = scanner.nextInt();
 
@@ -169,10 +181,10 @@ public class Game {
                         } else {
                             System.out.println("Invalid input. Your bid must be between 0 and " + round + ".");
                         }
+                    } catch (Exception e) {
+                        System.out.println("Input is not a number.");
+                        scanner.next();
                     }
-                } catch (Exception e) {
-                    System.out.println("Invalid input.");
-                    scanner.next();
                 }
             }
         }
@@ -205,10 +217,10 @@ public class Game {
                 Card selectedCard;
                 String selectedSuit = "";
                 boolean validCard = false;
-
                 printCardsOnTable(selectedCards);
-                System.out.println(player.getName() + ", it's your turn.");
-
+                if (!player.isBot()) {
+                    System.out.println(player.getName() + ", it's your turn.");
+                }
                 // if current player is the dealer. leading card is determined.
                 if (player == players[0]) {
                     if (player.isBot()) {
@@ -221,7 +233,7 @@ public class Game {
                             selectedCardString = scanner.nextLine();
                             System.out.println("Invalid input.");
                         }
-                        ;
+
                         selectedCard = player.getHand().getCardFromString(selectedCardString);
                     }
                     selectedCard.setVisibleToOthers(true);
@@ -239,9 +251,12 @@ public class Game {
                             System.out.println(player.getHand().showCards());
                             System.out.println("Trump: " + trumpCard.getSuit() +
                                     "\nLeading card suit: " + leadingCardSuit);
+                            if (!player.isBot()) {
+                                selectedCardString = scanner.nextLine();
+                            }
 
-                            selectedCardString = scanner.nextLine();
                             validCard = isValidCard(player, selectedCardString, leadingCardSuit);
+
                         }
                         selectedCard = player.getHand().getCardFromString(selectedCardString);
                         selectedCard.setVisibleToOthers(true);
@@ -251,6 +266,7 @@ public class Game {
             }
             highestCard = getHighestCard(selectedCards, trumpCard, leadingCard);
             giveTrickTo(highestCard, players);
+            printCardsOnTable(selectedCards);
             printTricks(players);
         }
     }
@@ -281,7 +297,6 @@ public class Game {
         }
         deck.addCard(trumpCard);
     }
-
 
     public static boolean compareCards(Card card1, Card card2, Card leadingCard, Card trumpCard) {
         Card highestCard;
@@ -358,24 +373,39 @@ public class Game {
     public static void showScores(Player[] players) {
         System.out.println("Round completed. Scores:");
         for (Player player : players) {
-            System.out.print(player.getName() + ": " + player.getScore() + "      ");
+            System.out.print(player.getName() + ": " + player.getScore() + "\n");
         }
+        System.out.println(" ");
     }
 
-    public static HashMap<String, Integer> readFile(String highscore)
-            throws ClassNotFoundException, IOException {
-        try (ObjectInputStream is = new ObjectInputStream(new FileInputStream(highscore))) {
-            is.close();
-            return (HashMap<String, Integer>) is.readObject();
+    public static Map<String, Integer> readFile(String highscore) {
+        File file = new File(highscore);
+        Map<String, Integer> highscoreMap = new HashMap<>();
+        try {
+            Scanner scanner = new Scanner(file);
+            while (scanner.hasNext()) {
+                String key = scanner.next();
+                int value = scanner.nextInt();
+                highscoreMap.put(key, value);
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error reading file.");
         }
+        return highscoreMap;
     }
 
-
-    public static void saveFile(Map<String, Integer> highScore, String highScoreString)
-            throws IOException {
-        try (ObjectOutputStream os = new ObjectOutputStream(new FileOutputStream(highScoreString))) {
-            os.writeObject(highScore);
-            os.close();
+    public static void saveFile(Map<String, Integer> highScore, String highScoreString) {
+        try {
+            PrintWriter writer = new PrintWriter(highScoreString, "UTF-8");
+            for (Map.Entry<String, Integer> entry : highScore.entrySet()) {
+                String name = entry.getKey();
+                int score = entry.getValue();
+                writer.println(name + " " + score);
+            }
+            writer.close();
+        } catch (Exception e) {
+            System.out.println("Error saving file.");
         }
     }
 
@@ -387,13 +417,6 @@ public class Game {
             }
         }
         highScore.put(winner.getName(), winner.getScore());
-        highScore = MapUtil.sortByValue(highScore);
-
-        try {
-            saveFile(highScore, "highscore.txt");
-        } catch (Exception e) {
-            System.out.println("Error saving file...");
-        }
     }
 
     static void showBids(Player[] players) {
@@ -401,9 +424,32 @@ public class Game {
             System.out.println("Player " + player.getName() + " bid " + player.getBid());
         }
     }
-    static void resetAllTricks(Player[] players){
-        for(Player player : players){
+
+    static void resetAllTricks(Player[] players) {
+        for (Player player : players) {
             player.resetTricks();
         }
     }
+
+    static void hideEveryCard(Deck deck) {
+        for (Card card : deck.getCards()) {
+            card.setVisibleToOthers(false);
+        }
+    }
+
+    static Player[] rotatePlayers(Player[] array, int k) {
+        if (k > array.length) {
+            k = k % array.length;
+        }
+
+        Player[] result = new Player[array.length];
+        System.arraycopy(array, array.length - 1, result, 0, k);
+        System.arraycopy(array, 0, result, k, array.length - 1);
+
+        array = result;
+
+        return result;
+    }
+
+
 }

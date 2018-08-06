@@ -52,7 +52,7 @@ public class Hand {
 
     public boolean containsSuit(String suit) {
         for (Card card : cards) {
-            if (card.getSuit() == suit) {
+            if (card.getSuit() == suit && !card.isVisibleToOthers()) {
                 return true;
             }
         }
